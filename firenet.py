@@ -60,6 +60,9 @@ def construct_firenet (x,y):
 
     return model
 
+def cv_imread(file_path):
+    cv_img=cv2.imdecode(np.fromfile(file_path,dtype=np.uint8),-1)
+    return cv_img
 ################################################################################
 
 # construct and display model
@@ -147,7 +150,7 @@ if False:
         elif (key == ord('f')):
             cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN);
 else:
-    path_list = glob.glob(os.path.join(r"F:\program\fire-detection-cnn\test","*.jpg"))
+    path_list = glob.glob(os.path.join(r"F:\data\fire\工厂实景图片\工厂实景图片\华达油墨图片","*.jpg"))
     for path in path_list:
         print("Loaded images ...")
 
@@ -156,7 +159,7 @@ else:
         cv2.namedWindow(windowName, cv2.WINDOW_NORMAL);
 
         # get video properties
-        img = cv2.imread(path)
+        img = cv_imread(path)
         width = img.shape[1]
         height = img.shape[0]
         # start a timer (to see how long processing and display takes)
