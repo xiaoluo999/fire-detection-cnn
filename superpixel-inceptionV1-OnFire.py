@@ -14,7 +14,7 @@ import os
 import sys
 import math
 import numpy as np
-
+import glob
 ################################################################################
 
 import tflearn
@@ -113,11 +113,11 @@ keepProcessing = True;
 
 ################################################################################
 
-if len(sys.argv) == 2:
+if False:
 
     # load video file from first command line argument
 
-    video = cv2.VideoCapture(sys.argv[1])
+    video = cv2.VideoCapture("./models/test.mp4")
     print("Loaded video ...")
 
     # create window
@@ -142,7 +142,7 @@ if len(sys.argv) == 2:
         ret, frame = video.read()
         if not ret:
             print("... end of video file reached");
-            break;
+            break
 
         # re-size image to network input size and perform prediction
 
@@ -211,6 +211,79 @@ if len(sys.argv) == 2:
         elif (key == ord('f')):
             cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN);
 else:
-    print("usage: python superpixel-inceptionV1-OnFire.py videofile.ext");
+    path_list = glob.glob(os.path.join(r"F:\program\fire-detection-cnn\test", "*.jpg"))
+    for path in path_list:
+        print("Loaded images ...")
+
+        # create window
+
+        cv2.namedWindow(windowName, cv2.WINDOW_NORMAL);
+
+        # get video properties
+        img = cv2.imread(path)
+        width = img.shape[1]
+        height = img.shape[0]
+        # start a timer (to see how long processing and display takes)
+        start_t = cv2.getTickCount();
+        # re-size image to network input size and perform prediction
+        small_frame = cv2.resize(img, (rows, cols), cv2.INTER_AREA)
+        # OpenCV imgproc SLIC superpixels implementation below
+
+        slic = cv2.ximgproc.createSuperpixelSLIC(small_frame, region_size=22)
+        slic.iterate(10)
+
+        # getLabels method returns the different superpixel segments
+        segments = slic.getLabels()
+
+        # print(len(np.unique(segments)))
+
+        # loop over the unique segment values
+        for (i, segVal) in enumerate(np.unique(segments)):
+
+            # Construct a mask for the segment
+            mask = np.zeros(small_frame.shape[:2], dtype="uint8")
+            mask[segments == segVal] = 255
+            im2, contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+            # create the superpixel by applying the mask
+
+            # N.B. this creates an image of the full frame with this superpixel being the only non-zero
+            # (i.e. not black) region. CNN training/testing classification is performed using these
+            # full frame size images, rather than isolated small superpixel images.
+            # Using the approach, we re-use the same InceptionV1-OnFire architecture as described in
+            # the paper [Dunnings / Breckon, 2018] with no changes trained on full frame images each
+            # containing an isolated superpixel with the rest of the image being zero/black.
+
+            superpixel = cv2.bitwise_and(small_frame, small_frame, mask=mask)
+            # cv2.imshow("superpixel", superpixel);
+
+            # use loaded model to make prediction on given superpixel segments
+            output = model.predict([superpixel])
+
+            # we know the green/red label seems back-to-front here (i.e.
+            # green means fire, red means no fire) but this is how we did it
+            # in the paper (?!) so we'll just keep the same crazyness for
+            # consistency with the paper figures
+
+            if round(output[0][0]) == 1:
+                # draw the contour
+                # if prediction for FIRE was TRUE (round to 1), draw GREEN contour for superpixel
+                cv2.drawContours(small_frame, contours, -1, (0, 255, 0), 1)
+
+            else:
+                # if prediction for FIRE was FALSE, draw RED contour for superpixel
+                cv2.drawContours(small_frame, contours, -1, (0, 0, 255), 1)
+
+
+        # stop the timer and convert to ms. (to see how long processing and display takes)
+
+        stop_t = ((cv2.getTickCount() - start_t) / cv2.getTickFrequency()) * 1000;
+        print("%d ms" % stop_t)
+        # image display and key handling
+
+        cv2.imshow(windowName, small_frame);
+
+        cv2.waitKey(0)
+
 
 ################################################################################

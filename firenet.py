@@ -12,7 +12,7 @@ import cv2
 import os
 import sys
 import math
-
+import glob
 ################################################################################
 
 import tflearn
@@ -84,11 +84,11 @@ keepProcessing = True;
 
 ################################################################################
 
-if len(sys.argv) == 2:
+if False:
 
     # load video file from first command line argument
 
-    video = cv2.VideoCapture(sys.argv[1])
+    video = cv2.VideoCapture("./models/test.mp4")
     print("Loaded video ...")
 
     # create window
@@ -147,6 +147,42 @@ if len(sys.argv) == 2:
         elif (key == ord('f')):
             cv2.setWindowProperty(windowName, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN);
 else:
-    print("usage: python firenet.py videofile.ext");
+    path_list = glob.glob(os.path.join(r"F:\program\fire-detection-cnn\test","*.jpg"))
+    for path in path_list:
+        print("Loaded images ...")
+
+        # create window
+
+        cv2.namedWindow(windowName, cv2.WINDOW_NORMAL);
+
+        # get video properties
+        img = cv2.imread(path)
+        width = img.shape[1]
+        height = img.shape[0]
+        # start a timer (to see how long processing and display takes)
+        start_t = cv2.getTickCount();
+        # re-size image to network input size and perform prediction
+        small_frame = cv2.resize(img, (rows, cols), cv2.INTER_AREA)
+        output = model.predict([small_frame])
+        # label image based on prediction
+        if round(output[0][0]) == 1:
+            cv2.rectangle(img, (0, 0), (width, height), (0, 0, 255), 50)
+            cv2.putText(img, 'FIRE', (int(width / 16), int(height / 4)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 10, cv2.LINE_AA);
+        else:
+                cv2.rectangle(img, (0, 0), (width, height), (0, 255, 0), 50)
+                cv2.putText(img, 'CLEAR', (int(width / 16), int(height / 4)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 4, (255, 255, 255), 10, cv2.LINE_AA);
+
+        # stop the timer and convert to ms. (to see how long processing and display takes)
+
+        stop_t = ((cv2.getTickCount() - start_t) / cv2.getTickFrequency()) * 1000;
+        print("%d ms" % stop_t)
+        # image display and key handling
+
+        cv2.imshow(windowName, img);
+
+        cv2.waitKey(0)
+
 
 ################################################################################
